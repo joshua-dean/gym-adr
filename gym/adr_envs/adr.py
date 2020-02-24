@@ -84,6 +84,10 @@ class ADR():
         adr.update(performance, var_info)
     if called sequentially, var_info will be handled automatically 
     if called in a disjoint fashion, it must be passed manually
+
+    sampling can be done without updating variables:
+        lam = adr.sample()
+        env = construct_environment(lam)
     """
     def __init__(self, variable_list=[], pq_size=240, performance_threshold=[0, 10]):
         self.performance_threshold = performance_threshold
@@ -138,76 +142,3 @@ class ADR():
                 self.variables[idx]/update(bound, Direction.SHRINK)
             else 
                 pass #no modification
-
-
-
-
-
-# class ADRUpperBound(ADRVariable):
-#     """
-#     An upper bound for some sort of distribution (most likely Uniform)
-#     Provided in case boundaries need to be tuned separately
-#     Min and max caps provided if necessary.
-#     """
-#     def __init__(self, value, delta, min_val=None, max_val=None):
-#         self.value = value 
-#         self.delta = delta 
-#         self.min_val = min_val 
-#         self.max_val = max_val
-    
-#     def expand(self):
-#         self.value += self.delta 
-#         if self.max_val != None and self.value >= self.max_val:
-#             self.value = self.max_val
-    
-#     def shrink(self):
-#         self.value -= self.delta 
-#         if self.min_val != None and self.value <= self.min_val:
-#             self.value = self.min_val 
-
-# class ADRLowerBound(ADRVariable):
-#     """
-#     A lower bound, identical to ADRUpperBound except movement is in the opposite direction
-#     """
-#     def __init__(self, value, delta, min_val=None, max_val=None):
-#         self.value = value 
-#         self.delta = delta 
-#         self.min_val = min_val 
-#         self.max_val = max_val
-    
-#     def expand(self):
-#         self.value -= self.delta 
-#         if self.min_val != None and self.value <= self.min_val:
-#             self.value = self.min_val 
-    
-#     def shrink(self):
-#         self.value += self.delta 
-#         if self.max_val != None and self.value >= self.max_val:
-#             self.value = self.max_val
-
-# class ADRUniformDistribution():
-#     """
-#     A uniform distribution to be adjusted by ADR
-#     Adjusts both boundaries outwards/inwards equally.
-#     One safeguard in place to make sure the boundaries don't cross their initial midpoint
-#     """
-#     def __init__(self, low_val, high_val, delta, min_val=None, max_val=None):
-#         midpoint = (high_val - low_val) / 2
-#         self.lower = ADRLowerBound(low_val, delta, min_val, midpoint)
-#         self.upper = ADRUpperBound(high_val, delta, midpoint, max_val)
-    
-#     def expand(self):
-#         self.lower.expand()
-#         self.upper.expand()
-    
-#     def shrink(self):
-#         self.lower.shrink() 
-#         self.upper.shrink()
-    
-#     def sample():
-#         return np.random.uniform(self.lower.value, self.upper.value)
-    
-#     def boundary_sample():
-#         return np.random.choice([self.lower.value, self.upper.value])
-    
-

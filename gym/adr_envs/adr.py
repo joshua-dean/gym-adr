@@ -2,8 +2,36 @@ import numpy as np
 from enum import IntEnum
 
 """
-Currently only supports generics randomizers
-Rewrite is probably needed for custom ones as different parameters from the same distribution are sampled at different intervals
+Automatic Domain Randomization in Python
+
+I'm open to suggestion/refactors should this implementation be insufficient
+
+Currently supports generic and some custom randomizers from the paper
+Creating new custom randomizers should be somewhat trivial
+
+(Questionable) Design Decisions:
+ - No generic sample() function, must explicitly choose episode vs step sample
+ - Step sample is left un-implemented in some generic randomizers (I need to think more about the effects of this)
+ - ADRUniform is the only ADRDist directly dependent on ADRParam, and thus everything must have this has it's base distribution
+ - ADRDist is a parent class that all distributions must extend, but that is the maximum intended extent of the hierarchy currently.
+   The classes have a lot of specific members and I want to keep the implementation as close to the data as possible (short of a completely procedural implementation)
+ - In the paper, all custom randomizers are based off of a Uniform Distribution. I provide the option to use a generic ADRDist should this be desired.
+   Potential uses of this are anyone's guess.
+ - g_func is from the paper, I don't have a large intuition for it's usefulness currently
+
+(Questionable) Notation Decisions:
+lam/lambda -> A distribution, most commonly uniform
+x -> Refers to the output of some distributions, to differentiate between inputs (which are x_0 or lam)
+x_0 -> usually an initial value or center of a distribution
+g -> g_func
+N -> normal distribution
+U -> uniform distribution
+a -> alpha
+
+TODO:
+ - Standardize documentation somehow, probably in a README
+ - LaTeX for documentation
+ - Improve tests
 """
 
 class Bound(IntEnum):
@@ -61,119 +89,153 @@ class ADRParam():
     """
     def get_value(self):
         return self.value 
-    
 
-class ADRUniform():
+class ADRDist():
+    """
+    ADRDist is provided as a base class for all ADR distributions
+    All distributions share at least a collection of parameters and the storing of a last sample
+
+    Many distributions are constructed using other distributions, so this class provides the ability to check types
+    Most commonly the ADRDist parameter passed into a complicated distribution will be of type ADRUniform,
+    however I don't limit it to that should the user decide to stack highly complicated distributions.
+    """
+    def __init__(self):
+        self.last_sample = None
+        self.parameters = None
+
+    # self.parameters should be list of ADRParam objects
+    def get_parameters(self):
+        return self.parameters
+
+    # Samples used to construct a single instance of the environment, i.e. a single lambda_i in env(lambda) ~ P(phi)
+    def episode_sample(self): 
+        raise NotImplementedError
+
+    # Samples used in a single step of the environment, not always needed
+    def step_sample(self):
+        raise NotImplementedError
+
+    # All distributions should store the most recent sample in case they are used by another distribution that works across both episodes and steps
+    def get_last_sample(self):
+        return self.last_sample
+
+class ADRUniform(ADRDist):
+    """
+    Uniform Distribution off of 2 parameters
+    i.e. x = U(phi^L, phi^H)
+    """
     def __init__(self, phi_left: ADRParam, phi_right: ADRParam):
+        super().__init__()
         self.phi_left = phi_left 
         self.phi_right = phi_right
-        self.last_sample = None
         self.parameters = [self.phi_left, self.phi_right]
-    
-    def get_parameters(self):
-        return self.parameters 
 
-    def sample(self):
+    def episode_sample(self):
         for param in parameters:
             if param.get_boundary_sample_flag():
                 param.set_boundary_sample_flag(False)
                 self.last_sample = param.get_value()
         self.last_sample = np.random.uniform(self.phi_left.get_value(), self.phi_right.get_value())
         return self.last_sample #return for convienience
-    
-    """
-    Provided if Uniform is used as the desired distribution
-    """
-    def episode_sample(self):
-        return self.sample()
-    
-    def get_last_sample(self):
-        return self.last_sample
 
-class ADRAdditiveGaussian():
-    def __init__(self, x_0, lam_i: ADRUniform, lam_j: ADRUniform, alpha=0.01):
+class ADRAdditiveGaussian(ADRDist):
+    """
+    Additive Gaussian Distribution
+    i.e. x = x_0 + |N| for N ~ N(g(a*lam_i), g(|a*lam_j|)^2)
+    """
+    def __init__(self, x_0, lam_i: ADRDist, lam_j: ADRDist, alpha=0.01):
+        super().__init__()
         self.x_0 = x_0
         self.lam_i = lam_i 
         self.lam_j = lam_j 
         self.alpha
         self.parameters = [self.lam_i.get_parameters() + self.lam_j.get_parameters]
     
-    def get_parameters(self):
-        return self.parameters
-    
     def episode_sample(self):
-        return self.x_0 + np.abs(
+        self.last_sample = self.x_0 + np.abs(
             np.random.normal(
                 g_func(
-                    self.alpha * self.lam_i.sample()
+                    self.alpha * self.lam_i.episode_sample()
                     ),
                 g_func(
                     np.abs(
-                        self.alpha * self.lam_j.sample()
+                        self.alpha * self.lam_j.episode_sample()
                     )
                 )
             )
         )
+        return self.last_sample
 
-class ADRUnbiasedAdditiveGaussian():
-    def __init__(self, x_0, lam_i: ADRUniform, alpha=0.01):
+class ADRUnbiasedAdditiveGaussian(ADRDist):
+    """
+    Unbiassed Additive Gaussian Distribution
+    i.e. x = x_0 + N for N ~ N(0, g(|a*lam_i|)^2)
+    """
+    def __init__(self, x_0, lam_i: ADRDist, alpha=0.01):
+        super().__init__()
         self.x_0 = x_0 
         self.lam_i = lam_i 
         self.alpha = alpha 
         self.parameters = self.lam_i.get_parameters() 
-    
-    def get_parameters(self):
-        return self.parameters 
 
     def episode_sample(self):
-        return self.x_0 + np.random.normal(
+        self.last_sample = self.x_0 + np.random.normal(
             0,
             g_func(
                 np.abs(
-                    self.alpha * self.lam_i.sample()
+                    self.alpha * self.lam_i.episode_sample()
                 )
             )
         )
+        return self.last_sample
 
-class ADRMultiplicative():
-    def __init__(self, x_0, lam_i: ADRUniform, lam_j: ADRUniform, alpha=0.01):
+class ADRMultiplicative(ADRDist):
+    """
+    Multiplicative Distribution
+    i.e. x_0*e^N for N ~ N(a*lam_i, |a*lam_j|^2)
+    """
+    def __init__(self, x_0, lam_i: ADRDist, lam_j: ADRDist, alpha=0.01):
+        super().__init__()
         self.x_0 = x_0 
         self.lam_i = lam_i 
         self.lam_j = lam_j 
         self.alpha = alpha 
-        self.parameters = self.lam_i.get_parameters() + self.lam_j.get_parameters 
-    
-    def get_parameters(self):
-        return self.parameters 
+        self.parameters = self.lam_i.get_parameters() + self.lam_j.get_parameters  
     
     def episode_sample(self):
-        return self.x_0 * np.exp(
+        self.last_sample = self.x_0 * np.exp(
             np.random.normal(
-                self.alpha * self.lam_i.sample(),
+                self.alpha * self.lam_i.episode_sample(),
                 np.abs(
-                    self.alpha * self.lam_j.sample()
+                    self.alpha * self.lam_j.episode_sample()
                 )
             )
         )
+        return self.last_sample
 
-class ADRActionNoise():
-    def __init__(self, a_0, lam_i: ADRUniform, lam_j: ADRUniform, lam_k: ADRUniform):
+class ADRActionNoise(ADRDist):
+    """
+    Action Noise where n_0 and n_1 are episode-sampled, and n_2 is step-sampled
+    a = a_0*n_0 + n_1 + n_2
+    n_0 ~ N(1, g(|lam_i|)^2)
+    n_1 ~ N(0, g(|lam_j|)^2)
+    n_2 ~ N(a*lam_i,|a*lam_j|^2)
+    """
+    def __init__(self, a_0, lam_i: ADRDist, lam_j: ADRDist, lam_k: ADRDist):
+        super().__init__()
         self.a_0 = a_0 
         self.lam_i = lam_i 
         self.lam_j = lam_j 
         self.lam_k = lam_k 
         self.parameters = self.lam_i.get_parameters() + self.lam_j.get_parameters + self.lam_k.get_parameters
-    
-    def get_parameters(self):
-        return self.parameters 
 
     def episode_sample(self):
-        self.lam_i.sample() 
-        self.lam_j.sample()
+        self.lam_i.episode_sample() 
+        self.lam_j.episode_sample()
         return self.step_sample()
     
     def step_sample(self):
-        return a_0 * np.random.normal(
+        self.last_sample = a_0 * np.random.normal(
             1,
             g_func(
                 np.abs(
@@ -193,15 +255,17 @@ class ADRActionNoise():
             0,
             g_func(
                 np.abs(
-                    self.lam_k.sample()
+                    self.lam_k.episode_sample()
                 )
             )
         )
+        return self.last_sample
 
 
 class ADR():
 
     def __init__(self, distributions=[], p_thresh=[0, 10]):
+        super().__init__()
         self.distributions = distributions 
         self.p_thresh = p_thresh 
         self.parameters = []
@@ -221,7 +285,7 @@ class ADR():
         self.sample_idx = np.random.choice(len(self.parameters), p=weights_norm)
         self.parameters[self.sample_idx].set_boundary_sample_flag(True)
 
-        return self.sample(), self.sample_idx
+        return self.episode_sample(), self.sample_idx
     
     def update(self, performance, param_idx=None):
         if param_idx is None:

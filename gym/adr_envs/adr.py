@@ -124,18 +124,18 @@ class ADRUniform(ADRDist):
     Uniform Distribution off of 2 parameters
     i.e. x = U(phi^L, phi^H)
     """
-    def __init__(self, phi_left: ADRParam, phi_right: ADRParam):
+    def __init__(self, phi_l: ADRParam, phi_h: ADRParam):
         super().__init__()
-        self.phi_left = phi_left 
-        self.phi_right = phi_right
-        self.parameters = [self.phi_left, self.phi_right]
+        self.phi_l = phi_l 
+        self.phi_h = phi_h
+        self.parameters = [self.phi_l, self.phi_h]
 
     def episode_sample(self):
         for param in parameters:
             if param.get_boundary_sample_flag():
                 param.set_boundary_sample_flag(False)
                 self.last_sample = param.get_value()
-        self.last_sample = np.random.uniform(self.phi_left.get_value(), self.phi_right.get_value())
+        self.last_sample = np.random.uniform(self.phi_l.get_value(), self.phi_h.get_value())
         return self.last_sample #return for convienience
 
 class ADRAdditiveGaussian(ADRDist):

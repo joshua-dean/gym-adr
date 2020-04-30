@@ -64,6 +64,9 @@ class ADRParam():
     
     @classmethod
     def fixed_boundary(val):
+        """
+        Creates an ADRParam that is fixed. It will not be boundary sampled or updated.
+        """
         return ADRParam(
             value = val 
             delta = 0,
@@ -157,12 +160,29 @@ class ADRUniform(ADRDist):
     
     @classmethod
     def from_bounds_only(low_value, high_value, name=""):
-        l = ADRParam(low_value)
-        r = ADRParam(high_value)
+        """
+        Constructs an ADRUniform based off of two values.
+        Picks a midpoint between them as a point they cannot cross,
+        and provides no minimum or maximum for either bound to reach.
+        this probably shouldn't be used that often.
+        """
+        midpoint = (low_value + high_value) / 2
+        l = ADRParam(
+            value = low_value,
+            val_bound = [-math.inf, midpoint]
+        )
+        r = ADRParam(
+            value = high_value,
+            val_bound = [midpoint, math.inf]
+        )
         return ADRUniform(l, r, name)
     
     @classmethod 
     def centered_around(low, start, high, delta=0.02, pq_size=240, boundary_sample_weight=1, name=""):
+        """
+        Constructs an ADRUniform that starts at "start" and can expand to [low, high], without allowing the bounds to cross the center point.
+        Useful for generating values where the default is the "easiest" to generalize for, and expansions in any direction increase difficulty
+        """
         l = ADRParam(
             value = start,
             val_bound = [low, start],

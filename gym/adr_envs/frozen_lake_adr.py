@@ -18,7 +18,34 @@ class Direction(IntEnum):
 class FrozenLakeADREnv(discrete.DiscreteEnv):
     metadata = {'render.modes': ['human', 'ansi']}
 
-    def __init__(self, adr_params, desc=None, map_name="4x4", is_slippery=True):
+    def __init__(self, adr_distributions=None, desc=None, map_name="4x4", is_slippery=True):
+        """
+        adr_distributions as a list of ADRDist
+        """
+        if adr_distributions is None:
+            map_size = ADRUniform(
+                phi_l = ADRParam.fixed_boundary(3),
+                phi_h = ADRParam(
+                    value = 3,
+                    val_bound = [3, 10],
+                    delta = 1
+                    pq_size = 25
+                ),
+                name = 'map_size'
+            )
+            slippery_prob = ADRUniform(
+                phi_l = ADRParam.fixed_boundary(0),
+                phi_h = ADRParam(
+                    value = 0.0,
+                    val_bound = [0.0, 1.0],
+                    delta = 0.1,
+                    pq_size = 25
+                ),
+                name = 'slippery_prob'
+            )
+            adr_distributions = [map_size, slippery_prob]
+        self.adr = ADR(adr_distributions)
+
         if desc is None and map_name is None:
             desc = generate_random_map()
         elif desc is None:

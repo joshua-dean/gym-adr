@@ -160,6 +160,24 @@ class ADRUniform(ADRDist):
         l = ADRParam(low_value)
         r = ADRParam(high_value)
         return ADRUniform(l, r, name)
+    
+    @classmethod 
+    def centered_around(low, start, high, delta=0.02, pq_size=240, boundary_sample_weight=1, name=""):
+        l = ADRParam(
+            value = start,
+            val_bound = [low, high],
+            delta = -delta,
+            pq_size = pq_size,
+            boundary_sample_weight = boundary_sample_weight
+        )
+        r = ADRParam(
+            value = start,
+            val_bound = [low, high],
+            delta = delta,
+            pq_size = pq_size,
+            boundary_sample_weight = boundary_sample_weight
+        )
+        return ADRUniform(l, r, name)
 
 class ADRAdditiveGaussian(ADRDist):
     """

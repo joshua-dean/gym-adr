@@ -62,6 +62,14 @@ class ADRParam():
         self.boundary_sample_flag = False 
         self.name = name 
     
+    @classmethod
+    def fixed_boundary(val):
+        return ADRParam(
+            value = val 
+            delta = 0,
+            pq_size = 0,
+            boundary_sample_weight = 0
+        )
     """
     Takes a performance value, updates it pq is full based on average performance over pq_size updates
     """

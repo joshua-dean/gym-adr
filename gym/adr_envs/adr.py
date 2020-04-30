@@ -1,4 +1,5 @@
 import numpy as np 
+import math
 from enum import IntEnum
 
 """
@@ -51,7 +52,7 @@ class ADRParam():
     Automatic Domain Randomization single parameter
     Contains a value, min-max bounds, a delta, a performance queue, and a sampling weight
     """
-    def __init__(self, value, val_bound, delta=0.02, pq_size=240, boundary_sample_weight=1):
+    def __init__(self, value, val_bound=[-math.inf, math.inf], delta=0.02, pq_size=240, boundary_sample_weight=1, name=""):
         self.value = value 
         self.val_bound = val_bound 
         self.delta = delta
@@ -59,6 +60,7 @@ class ADRParam():
         self.pq = [] 
         self.boundary_sample_weight = boundary_sample_weight 
         self.boundary_sample_flag = False 
+        self.name = name 
     
     """
     Takes a performance value, updates it pq is full based on average performance over pq_size updates
@@ -102,6 +104,7 @@ class ADRDist():
     def __init__(self):
         self.last_sample = None
         self.parameters = None
+        self.name = ""
 
     # self.parameters should be list of ADRParam objects
     def get_parameters(self):
@@ -124,11 +127,14 @@ class ADRUniform(ADRDist):
     Uniform Distribution off of 2 parameters
     i.e. x = U(phi^L, phi^H)
     """
-    def __init__(self, phi_l: ADRParam, phi_h: ADRParam):
+    def __init__(self, phi_l: ADRParam, phi_h: ADRParam, name=""):
         super().__init__()
         self.phi_l = phi_l 
         self.phi_h = phi_h
         self.parameters = [self.phi_l, self.phi_h]
+        self.name = name 
+        self.phi_l.name = self.name + "_l"
+        self.phi_r.name = self.name + "_r"
 
     def episode_sample(self):
         for param in parameters:
@@ -137,6 +143,12 @@ class ADRUniform(ADRDist):
                 self.last_sample = param.get_value()
         self.last_sample = np.random.uniform(self.phi_l.get_value(), self.phi_h.get_value())
         return self.last_sample #return for convienience
+    
+    @classmethod
+    def from_bounds_only(low_value, high_value, name=""):
+        l = ADRParam(low_value)
+        r = ADRParam(high_value)
+        return ADRUniform(l, r, name)
 
 class ADRAdditiveGaussian(ADRDist):
     """

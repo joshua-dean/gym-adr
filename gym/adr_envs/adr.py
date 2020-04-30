@@ -133,6 +133,9 @@ class ADRUniform(ADRDist):
         self.phi_h = phi_h
         self.parameters = [self.phi_l, self.phi_h]
         self.name = name 
+        self.update_boundary_names()
+    
+    def update_boundary_names(self):
         self.phi_l.name = self.name + "_l"
         self.phi_r.name = self.name + "_r"
 
@@ -278,12 +281,25 @@ class ADR():
 
     def __init__(self, distributions=[], p_thresh=[0, 10]):
         super().__init__()
-        self.distributions = distributions 
+        self.distribution_dict = ADR.construct_dict(distributions)
         self.p_thresh = p_thresh 
         self.parameters = []
         self.sample_idx = None 
         for dist in self.distributions:
             self.parameters += dist.get_parameters()
+
+    @classmethod
+    def construct_dict(distributions):
+        ph_val = 0
+        distribution_dict = {}
+        for dist in distributions:
+            if dist.name in distribution_dict:
+                dist.name = "dist_{}".format(ph_val)
+                dist.update_boundary_names()
+            distribution_dict[dist.name] = dist
+        
+        return distribution_dict
+
 
     def episode_sample(self):
         lam = [] 

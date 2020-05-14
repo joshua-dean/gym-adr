@@ -373,7 +373,10 @@ class ADR():
             param_idx = self.sample_idx 
         self.parameters[param_idx].update(performance, self.p_thresh)
     
-    def total_distribution_width(self):
+    #this is really a horrible way to do things
+    #sit down and formulate this on a whiteboard
+    #like it kinda works right now but like no
+    def total_distribution_width(self): 
         total = 0
         for dist in self.distributions:
             total += (dist.phi_h.value - dist.phi_l.value)

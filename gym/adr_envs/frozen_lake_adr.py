@@ -22,10 +22,11 @@ I omit sliperiness and only randomize map size and the probability a map square 
 class FrozenLakeADREnv(discrete.DiscreteEnv):
     metadata = {'render.modes': ['human', 'ansi']}
 
-    def __init__(self, adr_distributions=None, do_sample=True, desc=None, map_name="4x4"):
+    def __init__(self, adr_distributions=None, do_sample=True, adaptive_resampling=False, desc=None, map_name="4x4"):
         """
         adr_distributions as a list of ADRDist
         """
+        self.adaptive_resampling = adaptive_resampling
 
         if adr_distributions is None:
             map_size = ADRUniform(
@@ -43,7 +44,7 @@ class FrozenLakeADREnv(discrete.DiscreteEnv):
                     value = 0.8,
                     val_bound = [0.5, 0.8],
                     delta = -0.05,
-                    pq_size = 25
+                    pq_size = 50
                 ),
                 phi_h = ADRParam.fixed_boundary(1.0),
                 name = 'tile_prob'
@@ -73,12 +74,29 @@ class FrozenLakeADREnv(discrete.DiscreteEnv):
         self.cum_rew = 0
     
     def sample_params(self):
-        if np.random.rand() > 0.5: #randomly boundary sample
-            self.currently_sampling = True
-            lam, _ = self.adr.boundary_sample() 
-        else:
-            self.currently_sampling = False
-            lam = self.adr.episode_sample()
+        base_vals = [3, 0.8]
+        
+        while True:
+            # Sampling
+            if np.random.rand() > 0.5: #randomly boundary sample
+                self.currently_sampling = True
+                lam, _ = self.adr.boundary_sample() 
+            else:
+                self.currently_sampling = False
+                lam = self.adr.episode_sample()
+
+            if not self.adaptive_resampling:
+                break 
+
+            #evaluate sample
+            width = 0
+            for i in range(len(lam)):
+                width += abs(base_vals[i] - lam[i])
+            if width < (0.5 * self.adr.total_distribution_width()): #we force resampling if we're not utilizing 50% of the total available difficulty
+                continue 
+            else:
+                break
+
         self.map_size, self.frozen_tiles_prob = lam 
         self.map_size = int(self.map_size)
     

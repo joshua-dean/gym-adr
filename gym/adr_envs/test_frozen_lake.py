@@ -119,8 +119,14 @@ def normal_adr_env():
 
     return env 
 
+def resample_adr_env():
+    env = FrozenLakeADREnv(adaptive_resampling=True)
+    env = make_vec_env(lambda: env, n_envs=1)
+
+    return env
+
 def train_policy(env, learn_steps=10000):
-    model = PPO2('MlpLstmPolicy', env, nminibatches=1, verbose=1) #nminibatches=1 necessary until ADR is thread-safe for vec_envs
+    model = PPO2('MlpLstmPolicy', env, nminibatches=1, verbose=0) #nminibatches=1 necessary until ADR is thread-safe for vec_envs
     model = model.learn(learn_steps)
 
     return model 
@@ -140,22 +146,42 @@ def eval_model(model, env, attempts):
             obs, rew, done, info = env.step(action)
 
             if done: 
-                break 
-        print(rew)
+                break
         avg_cum_rew += (cum_rew + rew) #must include last step
         env.reset()
     
     return avg_cum_rew / attempts 
 
+# I use this to tune ADR params
+def single_eval():
+    learn_steps = 50000 
+    eval_attempts = 10 
+
+    train_env = resample_adr_env()
+
+    eval_envs = {
+        "Easy": ez_env(),
+        "Medium": mid_env(),
+        "Hard": hard_env(),
+    }
+
+    model = train_policy(train_env, learn_steps)
+
+    for eval_key, eval_env in eval_envs.items():
+        score = eval_model(model, eval_env, eval_attempts)
+
+        print("{} env evaluated in {} env: {}".format("ADR-R", eval_key, score))
+
 def full_eval():
-    learn_steps = 1
-    eval_attempts = 1
+    learn_steps = 10000
+    eval_attempts = 10
 
     train_envs = {
         "Easy": ez_env(),
         "Medium": mid_env(),
         "Hard": hard_env(),
-        "ADR": normal_adr_env()
+        "ADR": normal_adr_env(),
+        "ADR-R": resample_adr_env()
     }
     eval_envs = {
         "Easy": ez_env(),
@@ -175,6 +201,7 @@ def full_eval():
 
 
 if __name__ == "__main__":
-    full_eval()
+    single_eval()
+    # full_eval()
         
     

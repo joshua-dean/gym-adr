@@ -198,6 +198,17 @@ class ADRUniform(ADRDist):
             boundary_sample_weight = boundary_sample_weight
         )
         return ADRUniform(l, r, name)
+    
+    @staticmethod 
+    def fixed_value(value, name=""):
+        """
+        Constructs an ADRUniform that will always return a set value.
+        Useful for cases where a parameter is normally randomized, but needs to
+        be fixed for a test case.
+        """
+        l = ADRParam.fixed_boundary(value)
+        r = ADRParam.fixed_boundary(value)
+        return ADRUniform(l, r, name)
 
 class ADRAdditiveGaussian(ADRDist):
     """

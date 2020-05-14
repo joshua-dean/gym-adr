@@ -365,7 +365,8 @@ class ADR():
 
             return self.episode_sample(), self.sample_idx 
         self.sample_idx = 0
-        else return self.episode_sample(), self.sample_idx 
+        else:
+             return self.episode_sample(), self.sample_idx 
     
     def update(self, performance, param_idx=None):
         if param_idx is None:

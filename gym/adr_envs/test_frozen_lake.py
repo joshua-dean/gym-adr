@@ -49,9 +49,16 @@ def test_obs_transform_mem_speed():
     print("Vanilla : {}s".format(normal_end - normal_start))
     print("Memoized : {}s".format(mem_end - mem_start))
 
+def test_DR():
+    env = FrozenLakeADREnv()
+    obs = env.reset()
+    act = Direction.RIGHT 
+    for _ in range(3):
+        env.render()
+        obs, rew, done, info = env.step(act)
 
 
 if __name__ == "__main__":
-    test_obs_transform_mem_speed()
+    test_DR()
         
     

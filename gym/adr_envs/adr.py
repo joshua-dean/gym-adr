@@ -63,12 +63,12 @@ class ADRParam():
         self.name = name 
     
     @classmethod
-    def fixed_boundary(val):
+    def fixed_boundary(cls, val):
         """
         Creates an ADRParam that is fixed. It will not be boundary sampled or updated.
         """
         return ADRParam(
-            value = val 
+            value = val,
             delta = 0,
             pq_size = 0,
             boundary_sample_weight = 0
@@ -148,10 +148,10 @@ class ADRUniform(ADRDist):
     
     def update_boundary_names(self):
         self.phi_l.name = self.name + "_l"
-        self.phi_r.name = self.name + "_r"
+        self.phi_h.name = self.name + "_r"
 
     def episode_sample(self):
-        for param in parameters:
+        for param in self.parameters:
             if param.get_boundary_sample_flag():
                 param.set_boundary_sample_flag(False)
                 self.last_sample = param.get_value()
@@ -159,7 +159,7 @@ class ADRUniform(ADRDist):
         return self.last_sample #return for convienience
     
     @classmethod
-    def from_bounds_only(low_value, high_value, name=""):
+    def from_bounds_only(cls, low_value, high_value, name=""):
         """
         Constructs an ADRUniform based off of two values.
         Picks a midpoint between them as a point they cannot cross,
@@ -178,7 +178,7 @@ class ADRUniform(ADRDist):
         return ADRUniform(l, r, name)
     
     @classmethod 
-    def centered_around(low, start, high, delta=0.02, pq_size=240, boundary_sample_weight=1, name=""):
+    def centered_around(cls, low, start, high, delta=0.02, pq_size=240, boundary_sample_weight=1, name=""):
         """
         Constructs an ADRUniform that starts at "start" and can expand to [low, high], without allowing the bounds to cross the center point.
         Useful for generating values where the default is the "easiest" to generalize for, and expansions in any direction increase difficulty
@@ -325,17 +325,18 @@ class ADRActionNoise(ADRDist):
 
 class ADR():
 
-    def __init__(self, distributions=[], p_thresh=[0, 10]):
+    def __init__(self, distributions, p_thresh=[0, 10]):
         super().__init__()
         self.distribution_dict = ADR.construct_dict(distributions)
         self.p_thresh = p_thresh 
         self.parameters = []
         self.sample_idx = None 
+        self.distributions = distributions
         for dist in self.distributions:
             self.parameters += dist.get_parameters()
 
     @classmethod
-    def construct_dict(distributions):
+    def construct_dict(cls, distributions):
         ph_val = 0
         distribution_dict = {}
         for dist in distributions:

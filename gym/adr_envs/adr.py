@@ -62,8 +62,8 @@ class ADRParam():
         self.boundary_sample_flag = False 
         self.name = name 
     
-    @classmethod
-    def fixed_boundary(cls, val):
+    @staticmethod
+    def fixed_boundary(val):
         """
         Creates an ADRParam that is fixed. It will not be boundary sampled or updated.
         """
@@ -158,8 +158,8 @@ class ADRUniform(ADRDist):
         self.last_sample = np.random.uniform(self.phi_l.get_value(), self.phi_h.get_value())
         return self.last_sample #return for convienience
     
-    @classmethod
-    def from_bounds_only(cls, low_value, high_value, name=""):
+    @staticmethod
+    def from_bounds_only(low_value, high_value, name=""):
         """
         Constructs an ADRUniform based off of two values.
         Picks a midpoint between them as a point they cannot cross,
@@ -177,8 +177,8 @@ class ADRUniform(ADRDist):
         )
         return ADRUniform(l, r, name)
     
-    @classmethod 
-    def centered_around(cls, low, start, high, delta=0.02, pq_size=240, boundary_sample_weight=1, name=""):
+    @staticmethod 
+    def centered_around(low, start, high, delta=0.02, pq_size=240, boundary_sample_weight=1, name=""):
         """
         Constructs an ADRUniform that starts at "start" and can expand to [low, high], without allowing the bounds to cross the center point.
         Useful for generating values where the default is the "easiest" to generalize for, and expansions in any direction increase difficulty
@@ -335,8 +335,8 @@ class ADR():
         for dist in self.distributions:
             self.parameters += dist.get_parameters()
 
-    @classmethod
-    def construct_dict(cls, distributions):
+    @staticmethod
+    def construct_dict(distributions):
         ph_val = 0
         distribution_dict = {}
         for dist in distributions:

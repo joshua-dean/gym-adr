@@ -4,7 +4,7 @@ from contextlib import closing
 import numpy as np 
 from six import StringIO, b 
 
-from gym import utils 
+from gym import utils, spaces
 from gym.envs.toy_text import discrete 
 
 from enum import IntEnum
@@ -45,11 +45,12 @@ class FrozenLakeADREnv(discrete.DiscreteEnv):
                     delta = -0.05,
                     pq_size = 25
                 ),
-                phi_h = ADRParam.fixed_boundary(1.0)
+                phi_h = ADRParam.fixed_boundary(1.0),
+                name = 'tile_prob'
             )
             adr_distributions = [map_size, frozen_tiles_prob]
 
-        self.adr = ADR(adr_distributions, p_thresh=[0.5, 0.5])
+        self.adr = ADR(adr_distributions, p_thresh=[-3, 3])
         self.sample_params()
         self.generate_map()
         self.reward_range = (0, 1)
@@ -57,9 +58,21 @@ class FrozenLakeADREnv(discrete.DiscreteEnv):
         nS, nA, P, isd = self.generate_states_actions_transitions()
 
         super(FrozenLakeADREnv, self).__init__(nS, nA, P, isd)
+
+        self.action_space = spaces.Discrete(self.nA)
+        # self.observation_spaces = spaces.MultiDiscrete(
+
+        # )
+        self.observation_space = spaces.Box(
+            low = 0,
+            high = 4,
+            shape=(3,3,),
+            dtype=np.float32
+        )
+        self.cum_rew = 0
     
     def sample_params(self):
-        if np.random.rand > 0.5: #randomly boundary sample
+        if np.random.rand() > 0.5: #randomly boundary sample
             self.currently_sampling = True
             lam, _ = self.adr.boundary_sample() 
         else:
@@ -74,6 +87,16 @@ class FrozenLakeADREnv(discrete.DiscreteEnv):
         self.nrow, self.ncol = desc.shape
         self.padded_desc = np.pad(self.desc, 1, mode='constant', constant_values=' ') # is space character an bad idea? who knows
     
+    @staticmethod
+    def rew_by_char(char):
+        char_map = {
+            b'F': -0.1,
+            b'H': -10.0,
+            b'S': -0.1,
+            b'G': 10.0,
+        }
+        return char_map.get(char)
+
     def generate_states_actions_transitions(self):
         nA = 4 
         nS = self.nrow * self.ncol 
@@ -106,16 +129,29 @@ class FrozenLakeADREnv(discrete.DiscreteEnv):
                     li = P[s][a]
                     letter = self.desc[row, col]
                     if letter in b'GH':
-                        li.append((1.0, s, 0, True))
+                        rew = FrozenLakeADREnv.rew_by_char(newletter)
+                        li.append((1.0, s, rew, True))
                     else:
                         newrow, newcol = inc(row, col, a)
                         newstate = to_s(newrow, newcol)
                         newletter = self.desc[newrow, newcol]
                         done = bytes(newletter) in b'GH'
-                        rew = float(newletter == b'G')
+                        # rew = float(newletter == b'G')
+                        rew = FrozenLakeADREnv.rew_by_char(newletter)
                         li.append((1.0, newstate, rew, done))
         
         return nS, nA, P, isd
+
+    @staticmethod
+    def bit_to_int(bit):
+        bit_map = {
+            b' ': 0,
+            b'F': 1,
+            b'H': 2,
+            b'S': 3,
+            b'G': 4,
+        }
+        return bit_map.get(bit)
 
 
     def expand_obs(self, obs):
@@ -132,13 +168,24 @@ class FrozenLakeADREnv(discrete.DiscreteEnv):
             r_idx - view_radius + 1:r_idx + view_radius, 
             c_idx - view_radius + 1:c_idx + view_radius
         ]
+        float_obs = np.ndarray((3,3), dtype=np.float32)
+        for row in range(3):
+            for col in range(3):
+                float_obs[row][col] = FrozenLakeADREnv.bit_to_int(ret_obs[row][col]) #doing this conversion every time is probably slow
 
-        return ret_obs
+
+        return float_obs
     
     def reset(self):
+        self.current_steps = 0
+        # print("Max Map Size : {} Min Tile Prob : {}".format(
+        #     self.adr.distribution_dict['map_size'].phi_h.value, 
+        #     self.adr.distribution_dict['tile_prob'].phi_l.value
+        # ))
         if self.currently_sampling:
-            self.adr.update(self.most_recent_rew)
-            
+            self.adr.update(self.cum_rew)
+            self.currently_sampling = False
+        self.cum_rew = 0
         self.sample_params()
         self.generate_map()
         nS, nA, P, isd = self.generate_states_actions_transitions()
@@ -155,7 +202,10 @@ class FrozenLakeADREnv(discrete.DiscreteEnv):
     def step(self, a):
         obs, rew, done, info = super().step(a)
         obs = self.expand_obs(obs)
-        self.most_recent_rew = rew
+        self.cum_rew += rew
+
+        if self.current_steps > self.nS * 2: #they've had enough time to traverse every space twice
+            return (obs, -20, True, info)
 
         return (obs, rew, done, info)
 

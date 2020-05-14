@@ -94,7 +94,7 @@ class FrozenLakeADREnv(discrete.DiscreteEnv):
             b'F': -0.1,
             b'H': -10.0,
             b'S': -0.1,
-            b'G': 10.0,
+            b'G': 100.0,
         }
         return char_map.get(char)
 
@@ -205,6 +205,7 @@ class FrozenLakeADREnv(discrete.DiscreteEnv):
         obs = self.expand_obs(obs)
         self.cum_rew += rew
 
+        self.current_steps += 1
         if self.current_steps > self.nS * 2: #they've had enough time to traverse every space twice
             return (obs, -20, True, info)
 

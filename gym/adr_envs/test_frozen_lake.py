@@ -72,7 +72,8 @@ def hard_env():
         name = 'tile_prob'
     )
     adr_distributions = [map_size, frozen_tiles_prob]
-    env = FrozenLakeADREnv()
+    env = FrozenLakeADREnv(adr_distributions=adr_distributions, do_sample=False)
+    env.adr.do_boundary_sample = False
     env = make_vec_env(lambda: env, n_envs=1)
 
     return env
@@ -89,7 +90,7 @@ def ez_env():
         name = 'tile_prob'
     )
     adr_distributions = [map_size, frozen_tiles_prob]
-    env = FrozenLakeADREnv()
+    env = FrozenLakeADREnv(adr_distributions=adr_distributions, do_sample=False)
     env = make_vec_env(lambda: env, n_envs=1)
 
     return env
@@ -106,7 +107,8 @@ def mid_env():
         name = 'tile_prob'
     )
     adr_distributions = [map_size, frozen_tiles_prob]
-    env = FrozenLakeADREnv()
+    env = FrozenLakeADREnv(adr_distributions=adr_distributions, do_sample=False)
+    env.adr.do_boundary_sample = False
     env = make_vec_env(lambda: env, n_envs=1)
 
     return env
@@ -117,46 +119,62 @@ def normal_adr_env():
 
     return env 
 
-def train_policy(env):
+def train_policy(env, learn_steps=10000):
     model = PPO2('MlpLstmPolicy', env, nminibatches=1, verbose=1) #nminibatches=1 necessary until ADR is thread-safe for vec_envs
-    model = model.learn(10000)
+    model = model.learn(learn_steps)
 
     return model 
 
-def train_policy():
-    # env = FrozenLakeEnv()
-    env = FrozenLakeADREnv()
-    env = make_vec_env(lambda: env, n_envs=1)
-    model = PPO2('MlpLstmPolicy', env, nminibatches=1, verbose=1) #nminibatches=1 necessary until I make a thread-safe ADR
-    model = model.learn(10000)
+def eval_model(model, env, attempts):
+    avg_cum_rew = 0
 
-    env = hard_env()
-    #test 
     obs = env.reset()
-    state = None
-    done = [False] #eq to num_env, always 1 until I re-learn MPI
-    for i in range(5): #num attempts we give it
-        print("Attempt #{}".format(i))
-        while True: #environment *should* exit after a set number of timesteps
-            action, state = model.predict(obs, state=state, mask=done) #can't forget to pass internal state forward (i'm a noodle head)
-            cum_rew = env.envs[0].cum_rew #gotta grab it before env.step resets us, super hacky and I hate it
+
+    state = None 
+    done = [False]
+    for i in range(attempts):
+        while True:
+            action, state = model.predict(obs, state=state, mask=done)
+            cum_rew = env.envs[0].cum_rew 
+
             obs, rew, done, info = env.step(action)
 
-            if done:
-                if rew == 10:
-                    print("Success")
-                else:
-                    print("failure")
-                # print(rew)
-                # print("Environment Ended")
-                break
-        #we gotta print the cum_rew but also include the last rew
-        print("Cumulative Reward : {}".format(cum_rew+rew))
+            if done: 
+                break 
+        print(rew)
+        avg_cum_rew += (cum_rew + rew) #must include last step
         env.reset()
+    
+    return avg_cum_rew / attempts 
+
+def full_eval():
+    learn_steps = 1
+    eval_attempts = 1
+
+    train_envs = {
+        "Easy": ez_env(),
+        "Medium": mid_env(),
+        "Hard": hard_env(),
+        "ADR": normal_adr_env()
+    }
+    eval_envs = {
+        "Easy": ez_env(),
+        "Medium": mid_env(),
+        "Hard": hard_env(),
+    }
+
+    for train_key, train_env in train_envs.items():
+        model = train_policy(train_env, learn_steps)
+
+        for eval_key, eval_env in eval_envs.items():
+            score = eval_model(model, eval_env, eval_attempts)
+
+            print("{} env evaluated in {} env: {}".format(train_key, eval_key, score))
+
+    
 
 
 if __name__ == "__main__":
-    # test_DR()
-    train_policy()
+    full_eval()
         
     

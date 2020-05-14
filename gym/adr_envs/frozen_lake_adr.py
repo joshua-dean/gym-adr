@@ -22,7 +22,7 @@ I omit sliperiness and only randomize map size and the probability a map square 
 class FrozenLakeADREnv(discrete.DiscreteEnv):
     metadata = {'render.modes': ['human', 'ansi']}
 
-    def __init__(self, adr_distributions=None, desc=None, map_name="4x4"):
+    def __init__(self, adr_distributions=None, do_sample=True, desc=None, map_name="4x4"):
         """
         adr_distributions as a list of ADRDist
         """
@@ -51,6 +51,7 @@ class FrozenLakeADREnv(discrete.DiscreteEnv):
             adr_distributions = [map_size, frozen_tiles_prob]
 
         self.adr = ADR(adr_distributions, p_thresh=[-3, 3])
+        self.adr.do_boundary_sample = do_sample #ugh I hate this
         self.sample_params()
         self.generate_map()
         self.reward_range = (0, 1)

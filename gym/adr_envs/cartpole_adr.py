@@ -2,14 +2,15 @@ import math
 import gym 
 from gym import spaces 
 from gym.utils import seeding 
+from gym.envs.classic_control import CartPoleEnv
 import numpy as np
 
 import adr 
 from adr import ADR, ADRParam, ADRUniform 
 
-class CartPoleADREnv(gym.Env):
+class CartPoleADREnv(CartPoleEnv):
 
-    def __init__(self, adr=None, adaptive_resamping=False):
+    def __init__(self, adr=None, adaptive_resampling=False):
         super(CartPoleADREnv, self).__init__()
 
         if adr is None:
@@ -29,10 +30,9 @@ class CartPoleADREnv(gym.Env):
                 pq_size = 25,
                 name = "cart_mass"
             )
-            m_p = ADRUniform(
-                phi_l = ADRParam.fixed_boundary(0.1),
-                phi_h = ADRParam.fixed_boundary(0.1),
-                name = "pole mass"
+            m_p = ADRUniform.fixed_value(
+                value = 0.1,
+                name = "pole_mass"
             )
             p_len = ADRUniform.centered_around(
                 low = 0.4,
@@ -54,7 +54,7 @@ class CartPoleADREnv(gym.Env):
                 phi_l = ADRParam.fixed_boundary(0.02),
                 phi_h = ADRParam(
                     value = 0.02,
-                    val_bound = [0.02, 0.20],
+                    val_bound = [0.02, 0.10],
                     delta = 0.01,
                     pq_size = 25,
                     boundary_sample_weight = 2,
@@ -67,7 +67,7 @@ class CartPoleADREnv(gym.Env):
             self.adr.do_boundary_sample = True 
         else:
             self.adr = adr   
-        self.adaptive_resamping = adaptive_resamping
+        self.adaptive_resampling = adaptive_resampling
 
         self.sample_params() 
         self.currently_sampling = False 
@@ -85,21 +85,21 @@ class CartPoleADREnv(gym.Env):
                 self.currently_sampling = False 
                 lam = self.adr.episode_sample() 
             
-            if not self.adaptive_resamping:
+            if not self.adaptive_resampling:
                 break 
                 
             #evaluate sample 
             width = 0 
             for i in range(len(lam)):
                 width += abs(base_vals[i] - lam[i])
-            if width < (0.3 * self.adr.total_distribution_width()):
+            if width < (0.2 * self.adr.total_distribution_width()):
                 continue 
             else:
                 break 
         
-        grav, m_c, m_p, pole_len, force_mag, tau = self.sample_params() 
+        grav, m_c, m_p, pole_len, force_mag, tau = lam
 
-        self.gravity = gravity 
+        self.gravity = grav 
         self.masscart = m_c 
         self.masspole = m_p 
         self.total_mass = (self.masspole + self.masscart)

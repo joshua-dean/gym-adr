@@ -334,6 +334,8 @@ class ADR():
         self.distributions = distributions
         for dist in self.distributions:
             self.parameters += dist.get_parameters()
+        
+        self.do_boundary_sample = True 
 
     @staticmethod
     def construct_dict(distributions):
@@ -355,12 +357,15 @@ class ADR():
         return lam 
     
     def boundary_sample(self):
-        sample_weights = [param.get_boundary_sample_weight() for param in self.parameters]
-        weights_norm = sample_weights / np.sum(sample_weights)
-        self.sample_idx = np.random.choice(len(self.parameters), p=weights_norm)
-        self.parameters[self.sample_idx].set_boundary_sample_flag(True)
+        if self.do_boundary_sample: #this is horrible TODO fix this trash
+            sample_weights = [param.get_boundary_sample_weight() for param in self.parameters]
+            weights_norm = sample_weights / np.sum(sample_weights)
+            self.sample_idx = np.random.choice(len(self.parameters), p=weights_norm)
+            self.parameters[self.sample_idx].set_boundary_sample_flag(True)
 
-        return self.episode_sample(), self.sample_idx
+            return self.episode_sample(), self.sample_idx 
+        self.sample_idx = 0
+        else return self.episode_sample(), self.sample_idx 
     
     def update(self, performance, param_idx=None):
         if param_idx is None:

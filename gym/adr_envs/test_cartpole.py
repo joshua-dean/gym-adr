@@ -146,26 +146,32 @@ def eval_model(model, env, attempts):
     return avg_cum_rew / attempts 
 
 def single_eval():
-    learn_steps = 10000 
+    learn_steps = 50000 
     eval_attempts = 10 
 
-    train_env = resample_adr_env()
+    train_env = ez_env()
 
     eval_envs = {
         "Easy": ez_env(),
         "Medium": mid_env(),
         "Hard": hard_env(),
     }
+    score = {
+            "Easy": 0,
+            "Medium": 0,
+            "Hard": 0
+    }
+    for _ in range(1):
 
-    model = train_policy(train_env, learn_steps)
+        model = train_policy(train_env, learn_steps)
 
-    for eval_key, eval_env in eval_envs.items():
-        score = eval_model(model, eval_env, eval_attempts)
+        for eval_key, eval_env in eval_envs.items():
+            score[eval_key] += eval_model(model, eval_env, eval_attempts)
 
-        print("{} env evaluated in {} env: {}".format("ADR-R", eval_key, score))
+    print("{} env evaluated in {} env: {}".format("ADR-R", eval_key, score))
 
 def full_eval():
-    learn_steps = 50000
+    learn_steps = 10000
     eval_attempts = 10
 
     train_envs = {
@@ -182,13 +188,19 @@ def full_eval():
     }
 
     for train_key, train_env in train_envs.items():
-        model = train_policy(train_env, learn_steps)
+        score = {
+            "Easy": 0,
+            "Medium": 0,
+            "Hard": 0
+        }
+        for _ in range(5):
+            model = train_policy(train_env, learn_steps)
 
-        for eval_key, eval_env in eval_envs.items():
-            score = eval_model(model, eval_env, eval_attempts)
-
-            print("{} env evaluated in {} env: {}".format(train_key, eval_key, score))
+            for eval_key, eval_env in eval_envs.items():
+                score[eval_key] += eval_model(model, eval_env, eval_attempts)
+        print("{} env :".format(train_key))
+        print(score)
 
 if __name__ == "__main__":
-    full_eval()
-    # single_eval()
+    # full_eval()
+    single_eval()

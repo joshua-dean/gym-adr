@@ -190,18 +190,24 @@ def full_eval():
     }
 
     for train_key, train_env in train_envs.items():
-        model = train_policy(train_env, learn_steps)
+        score = {
+            "Easy": 0,
+            "Medium": 0,
+            "Hard": 0
+        }
+        for _ in range(5):
+            model = train_policy(train_env, learn_steps)
 
-        for eval_key, eval_env in eval_envs.items():
-            score = eval_model(model, eval_env, eval_attempts)
-
-            print("{} env evaluated in {} env: {}".format(train_key, eval_key, score))
+            for eval_key, eval_env in eval_envs.items():
+                score[eval_key] += eval_model(model, eval_env, eval_attempts)
+        print("{} env :".format(train_key))
+        print(score)
 
     
 
 
 if __name__ == "__main__":
-    single_eval()
-    # full_eval()
+    # single_eval()
+    full_eval()
         
     

@@ -92,7 +92,7 @@ class CartPoleADREnv(CartPoleEnv):
             width = 0 
             for i in range(len(lam)):
                 width += abs(base_vals[i] - lam[i])
-            if width < (0.2 * self.adr.total_distribution_width()):
+            if width < (0.3 * self.adr.total_distribution_width()):
                 continue 
             else:
                 break 
